@@ -1,8 +1,12 @@
+import 'dart:convert' as convert;
+
+import 'package:arz/model/arz_model.dart';
 import 'package:cherry_toast/cherry_toast.dart';
 import 'package:cherry_toast/resources/arrays.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const MyApp());
@@ -61,11 +65,49 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class MyHomePage extends StatelessWidget {
+class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
 
   @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  List<ArzModel> currency = [];
+
+  getData() {
+    var url =
+        'https://sasansafari.com/flutter/api.php?access_key=flutter123456';
+    http.get(Uri.parse(url)).then((value) {
+      if (currency.isEmpty) {
+        if (value.statusCode == 200) {
+          List jsonList = convert.jsonDecode(value.body);
+
+          if (jsonList.isNotEmpty) {
+            for (var i = 0; i < jsonList.length; i++) {
+              setState(
+                () {
+                  currency.add(
+                    ArzModel(
+                      id: jsonList[i]['id'],
+                      title: jsonList[i]['title'],
+                      price: jsonList[i]['price'],
+                      changes: jsonList[i]['changes'],
+                      status: jsonList[i]['status'],
+                    ),
+                  );
+                },
+              );
+            }
+          }
+        }
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    getData();
     final themData = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
@@ -132,10 +174,12 @@ class MyHomePage extends StatelessWidget {
             SizedBox(
               height: 250,
               child: ListView.builder(
-                itemCount: 10,
+                itemCount: currency.length,
                 physics: const BouncingScrollPhysics(),
                 itemBuilder: (context, index) {
-                  return const CartItem();
+                  return CartItem(
+                    currency: currency[index],
+                  );
                 },
               ),
             ),
@@ -200,8 +244,10 @@ class MyHomePage extends StatelessWidget {
 
 /// this is  for Cart item ListView Price
 class CartItem extends StatelessWidget {
+  final ArzModel currency;
   const CartItem({
     super.key,
+    required this.currency,
   });
 
   @override
@@ -218,12 +264,22 @@ class CartItem extends StatelessWidget {
           ),
         ],
       ),
-      child: const Row(
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          Text('یورو'),
-          Text('26000'),
-          Text('5'),
+          Text(currency.title),
+          Text(currency.price),
+          Text(
+            currency.changes,
+            style: currency.status == 'n'
+                ? ThemeData().textTheme.displaySmall!.apply(
+                      color: Colors.red,
+                    )
+                : ThemeData()
+                    .textTheme
+                    .displaySmall!
+                    .apply(color: Colors.green),
+          ),
         ],
       ),
     );
