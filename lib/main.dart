@@ -7,6 +7,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
 void main() {
   runApp(const MyApp());
@@ -75,39 +76,45 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   List<ArzModel> currency = [];
 
-  getData() {
+  Future getData() async {
     var url =
         'https://sasansafari.com/flutter/api.php?access_key=flutter123456';
-    http.get(Uri.parse(url)).then((value) {
-      if (currency.isEmpty) {
-        if (value.statusCode == 200) {
-          List jsonList = convert.jsonDecode(value.body);
+    var value = await http.get(Uri.parse(url));
+    if (currency.isEmpty) {
+      if (value.statusCode == 200) {
+        _showToast('به روز رسانی با موفقیت انجام شد').show(context);
+        List jsonList = convert.jsonDecode(value.body);
 
-          if (jsonList.isNotEmpty) {
-            for (var i = 0; i < jsonList.length; i++) {
-              setState(
-                () {
-                  currency.add(
-                    ArzModel(
-                      id: jsonList[i]['id'],
-                      title: jsonList[i]['title'],
-                      price: jsonList[i]['price'],
-                      changes: jsonList[i]['changes'],
-                      status: jsonList[i]['status'],
-                    ),
-                  );
-                },
-              );
-            }
+        if (jsonList.isNotEmpty) {
+          for (var i = 0; i < jsonList.length; i++) {
+            setState(
+              () {
+                currency.add(
+                  ArzModel(
+                    id: jsonList[i]['id'],
+                    title: jsonList[i]['title'],
+                    price: jsonList[i]['price'],
+                    changes: jsonList[i]['changes'],
+                    status: jsonList[i]['status'],
+                  ),
+                );
+              },
+            );
           }
         }
       }
-    });
+    }
+    return value;
+  }
+
+  @override
+  void initState() {
+    getData();
+    super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
-    getData();
     final themData = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
@@ -173,15 +180,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             SizedBox(
               height: 250,
-              child: ListView.builder(
-                itemCount: currency.length,
-                physics: const BouncingScrollPhysics(),
-                itemBuilder: (context, index) {
-                  return CartItem(
-                    currency: currency[index],
-                  );
-                },
-              ),
+              child: getFuture(),
             ),
             Container(
               margin: const EdgeInsets.symmetric(vertical: 12),
@@ -199,8 +198,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     child: TextButton.icon(
                       onPressed: () {
-                        _showToast('به روز رسانی با موفقیت انجام شد')
-                            .show(context);
+                        currency.clear();
+                        getFuture();
                       },
                       icon: const Icon(
                         CupertinoIcons.refresh,
@@ -226,6 +225,26 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  /// this method get list price from Api
+  FutureBuilder<dynamic> getFuture() {
+    return FutureBuilder(
+      builder: (context, snapshot) {
+        return snapshot.hasData
+            ? ListView.builder(
+                itemCount: currency.length,
+                physics: const BouncingScrollPhysics(),
+                itemBuilder: (context, index) {
+                  return CartItem(
+                    currency: currency[index],
+                  );
+                },
+              )
+            : const Center(child: CircularProgressIndicator());
+      },
+      future: getData(),
+    );
+  }
+
   /// this method for show Toast
   CherryToast _showToast(String message) {
     return CherryToast.success(
@@ -238,7 +257,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   /// this method for get time
   String _getTime() {
-    return '20:45';
+    DateTime now = DateTime.now();
+    return DateFormat('kk:mm:ss').format(now);
   }
 }
 
